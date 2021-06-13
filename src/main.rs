@@ -7,8 +7,9 @@ use uuid::Uuid;
 
 mod controllers;
 mod handlers;
-mod state;
+mod helpers;
 mod models;
+mod state;
 
 use controllers::formulas;
 use controllers::herbs;
@@ -27,7 +28,7 @@ async fn main() {
         .bind(format!("0.0.0.0:{}", port))
         .await
         .expect("can't bind port");
-    
+
     for info in listener.info().iter() {
         println!("Server listening on {}", info);
     }
@@ -40,9 +41,7 @@ pub async fn make_db_pool(db_url: &str) -> PgPool {
 }
 
 async fn server(db_pool: PgPool) -> Server<state::State> {
-    let state = state::State {
-        db_pool 
-    };
+    let state = state::State { db_pool };
 
     let mut app = tide::with_state(state);
 
