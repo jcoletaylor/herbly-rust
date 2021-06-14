@@ -1,11 +1,11 @@
 use crate::helpers;
-use crate::models::query_results;
-use crate::models::tide_results;
+use crate::models::db_results;
+use crate::models::web_results;
 use sqlx::{query_as, Error as SqlxError, PgPool};
 use tide::Error;
 
-fn convert_query_single_formula_to_tide(formula: &query_results::Formula) -> tide_results::Formula {
-    tide_results::Formula {
+fn convert_db_single_formula_to_web(formula: &db_results::Formula) -> web_results::Formula {
+    web_results::Formula {
         id: formula.id,
         name: String::from(&formula.name),
         pinyin: helpers::copy_string_or_none(&formula.pinyin),
@@ -18,9 +18,9 @@ fn convert_query_single_formula_to_tide(formula: &query_results::Formula) -> tid
 async fn get_single_formula(
     name: &String,
     db_pool: &PgPool,
-) -> Result<Option<query_results::Formula>, SqlxError> {
+) -> Result<Option<db_results::Formula>, SqlxError> {
     let formula = query_as!(
-        query_results::Formula,
+        db_results::Formula,
         r#"
         SELECT
             formulas.id,
@@ -41,13 +41,13 @@ async fn get_single_formula(
     Ok(formula)
 }
 
-pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<tide_results::Formula> {
+pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<web_results::Formula> {
     let maybe_formula = get_single_formula(&name, db_pool)
         .await
         .map_err(|e| Error::new(409, e))?;
 
     match maybe_formula {
-        Some(formula) => Ok(convert_query_single_formula_to_tide(&formula)),
+        Some(formula) => Ok(convert_db_single_formula_to_web(&formula)),
         None => Err(Error::from_str(
             404,
             format!("No formula found for {}", name),
@@ -59,9 +59,9 @@ async fn get_all_formulas(
     limit: i64,
     offset: i64,
     db_pool: &PgPool,
-) -> Result<Vec<query_results::Formula>, SqlxError> {
+) -> Result<Vec<db_results::Formula>, SqlxError> {
     let formulas = query_as!(
-        query_results::Formula,
+        db_results::Formula,
         r#"
         SELECT
             formulas.id,
@@ -86,13 +86,13 @@ pub async fn get_all(
     limit: i64,
     offset: i64,
     db_pool: &PgPool,
-) -> tide::Result<Vec<tide_results::Formula>> {
+) -> tide::Result<Vec<web_results::Formula>> {
     let formulas = get_all_formulas(limit, offset, db_pool)
         .await
         .map_err(|e| Error::new(409, e))?;
-    let mut results: Vec<tide_results::Formula> = vec![];
+    let mut results: Vec<web_results::Formula> = vec![];
     for formula in formulas.iter() {
-        results.push(convert_query_single_formula_to_tide(formula));
+        results.push(convert_db_single_formula_to_web(formula));
     }
     Ok(results)
 }

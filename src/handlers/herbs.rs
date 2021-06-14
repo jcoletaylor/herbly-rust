@@ -1,11 +1,11 @@
 use crate::helpers;
-use crate::models::query_results;
-use crate::models::tide_results;
+use crate::models::db_results;
+use crate::models::web_results;
 use sqlx::{query_as, Error as SqlxError, PgPool};
 use tide::Error;
 
-fn convert_query_single_herb_to_tide(herb: &query_results::Herb) -> tide_results::Herb {
-    tide_results::Herb {
+fn convert_db_single_herb_to_web(herb: &db_results::Herb) -> web_results::Herb {
+    web_results::Herb {
         id: herb.id,
         name: String::from(&herb.name),
         pinyin: helpers::copy_string_or_none(&herb.pinyin),
@@ -28,9 +28,9 @@ fn convert_query_single_herb_to_tide(herb: &query_results::Herb) -> tide_results
 async fn get_single_herb(
     name: &String,
     db_pool: &PgPool,
-) -> Result<Option<query_results::Herb>, SqlxError> {
+) -> Result<Option<db_results::Herb>, SqlxError> {
     let herb = query_as!(
-        query_results::Herb,
+        db_results::Herb,
         r#"
         SELECT
             herbs.id,
@@ -55,13 +55,13 @@ async fn get_single_herb(
     Ok(herb)
 }
 
-pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<tide_results::Herb> {
+pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<web_results::Herb> {
     let maybe_herb = get_single_herb(&name, db_pool)
         .await
         .map_err(|e| Error::new(409, e))?;
 
     match maybe_herb {
-        Some(herb) => Ok(convert_query_single_herb_to_tide(&herb)),
+        Some(herb) => Ok(convert_db_single_herb_to_web(&herb)),
         None => Err(Error::from_str(404, format!("No herb found for {}", name))),
     }
 }
@@ -70,9 +70,9 @@ async fn get_all_herbs(
     limit: i64,
     offset: i64,
     db_pool: &PgPool,
-) -> Result<Vec<query_results::Herb>, SqlxError> {
+) -> Result<Vec<db_results::Herb>, SqlxError> {
     let herbs = query_as!(
-        query_results::Herb,
+        db_results::Herb,
         r#"
         SELECT
             herbs.id,
@@ -101,13 +101,13 @@ pub async fn get_all(
     limit: i64,
     offset: i64,
     db_pool: &PgPool,
-) -> tide::Result<Vec<tide_results::Herb>> {
+) -> tide::Result<Vec<web_results::Herb>> {
     let herbs = get_all_herbs(limit, offset, db_pool)
         .await
         .map_err(|e| Error::new(409, e))?;
-    let mut results: Vec<tide_results::Herb> = vec![];
+    let mut results: Vec<web_results::Herb> = vec![];
     for herb in herbs.iter() {
-        results.push(convert_query_single_herb_to_tide(herb));
+        results.push(convert_db_single_herb_to_web(herb));
     }
     Ok(results)
 }

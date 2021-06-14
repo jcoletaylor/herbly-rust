@@ -1,2 +1,2 @@
-pub mod query_results;
-pub mod tide_results;
+pub mod db_results;
+pub mod web_results;
