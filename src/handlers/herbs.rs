@@ -1,20 +1,20 @@
 use crate::helpers;
 use crate::models::query_results;
 use crate::models::tide_results;
-use sqlx::{query_as, PgPool};
+use sqlx::{query_as, Error as SqlxError, PgPool};
 use tide::Error;
 
-fn convert_query_to_tide(row: &query_results::Herb) -> tide_results::Herb {
+fn convert_query_single_herb_to_tide(herb: &query_results::Herb) -> tide_results::Herb {
     tide_results::Herb {
-        id: row.id,
-        name: String::from(&row.name),
-        pinyin: helpers::copy_string_or_none(&row.pinyin),
-        hanzi: helpers::copy_string_or_none(&row.hanzi),
-        latin: helpers::copy_string_or_none(&row.latin),
-        common_english: helpers::copy_string_or_none(&row.common_english),
-        pharm_latin: helpers::copy_string_or_none(&row.pharm_latin),
-        herb_category_id: row.herb_category_id,
-        herb_category: String::from(&row.herb_category),
+        id: herb.id,
+        name: String::from(&herb.name),
+        pinyin: helpers::copy_string_or_none(&herb.pinyin),
+        hanzi: helpers::copy_string_or_none(&herb.hanzi),
+        latin: helpers::copy_string_or_none(&herb.latin),
+        common_english: helpers::copy_string_or_none(&herb.common_english),
+        pharm_latin: helpers::copy_string_or_none(&herb.pharm_latin),
+        herb_category_id: herb.herb_category_id,
+        herb_category: String::from(&herb.herb_category),
         herb_actions: None,
         herb_properties: None,
         herb_dosages: None,
@@ -25,8 +25,11 @@ fn convert_query_to_tide(row: &query_results::Herb) -> tide_results::Herb {
     }
 }
 
-pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<tide_results::Herb> {
-    let row = query_as!(
+async fn get_single_herb(
+    name: &String,
+    db_pool: &PgPool,
+) -> Result<Option<query_results::Herb>, SqlxError> {
+    let herb = query_as!(
         query_results::Herb,
         r#"
         SELECT
@@ -48,21 +51,27 @@ pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<tide_result
         name
     )
     .fetch_optional(db_pool)
-    .await
-    .map_err(|e| Error::new(409, e))?;
+    .await?;
+    Ok(herb)
+}
 
-    match row {
-        Some(r) => Ok(convert_query_to_tide(&r)),
+pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<tide_results::Herb> {
+    let maybe_herb = get_single_herb(&name, db_pool)
+        .await
+        .map_err(|e| Error::new(409, e))?;
+
+    match maybe_herb {
+        Some(herb) => Ok(convert_query_single_herb_to_tide(&herb)),
         None => Err(Error::from_str(404, format!("No herb found for {}", name))),
     }
 }
 
-pub async fn get_all(
+async fn get_all_herbs(
     limit: i64,
     offset: i64,
     db_pool: &PgPool,
-) -> tide::Result<Vec<tide_results::Herb>> {
-    let rows = query_as!(
+) -> Result<Vec<query_results::Herb>, SqlxError> {
+    let herbs = query_as!(
         query_results::Herb,
         r#"
         SELECT
@@ -84,11 +93,21 @@ pub async fn get_all(
         offset
     )
     .fetch_all(db_pool)
-    .await
-    .map_err(|e| Error::new(409, e))?;
+    .await?;
+    Ok(herbs)
+}
+
+pub async fn get_all(
+    limit: i64,
+    offset: i64,
+    db_pool: &PgPool,
+) -> tide::Result<Vec<tide_results::Herb>> {
+    let herbs = get_all_herbs(limit, offset, db_pool)
+        .await
+        .map_err(|e| Error::new(409, e))?;
     let mut results: Vec<tide_results::Herb> = vec![];
-    for row in rows.iter() {
-        results.push(convert_query_to_tide(&row));
+    for herb in herbs.iter() {
+        results.push(convert_query_single_herb_to_tide(herb));
     }
     Ok(results)
 }

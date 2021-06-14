@@ -1,9 +1,7 @@
-use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::Pool;
 use tide::prelude::*;
-use tide::{Error, Server};
-use uuid::Uuid;
+use tide::Server;
 
 mod controllers;
 mod handlers;
@@ -47,8 +45,8 @@ async fn server(db_pool: PgPool) -> Server<state::State> {
 
     app.at("/herbs").get(herbs::get_all);
     app.at("/herbs/:name").get(herbs::get_one);
-    // app.at("/formulas").get(formulas::get_all);
-    // app.at("/formulas/:name").get(formulas::get_one);
+    app.at("/formulas").get(formulas::get_all);
+    app.at("/formulas/:name").get(formulas::get_one);
 
     app
 }
