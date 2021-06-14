@@ -1,4 +1,4 @@
-use sqlx::{Pool, PgPool};
+use sqlx::{PgPool, Pool};
 use tide::Server;
 
 use crate::controllers::formulas;

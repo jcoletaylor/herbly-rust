@@ -1,17 +1,20 @@
 use tide::prelude::*;
 
+mod app;
 mod controllers;
 mod handlers;
 mod helpers;
 mod models;
 mod state;
-mod app;
+
+#[cfg(test)]
+mod tests;
 
 #[async_std::main]
 async fn main() {
     dotenv::dotenv().ok();
     tide::log::start();
-    
+
     let db_pool = app::make_db_pool().await;
     let server = app::make_server(db_pool).await;
     let port = std::env::var("PORT").unwrap_or("8080".to_string());
