@@ -12,7 +12,8 @@ async fn main() {
     dotenv::dotenv().ok();
     tide::log::start();
     
-    let server = app::make_server().await;
+    let db_pool = app::make_db_pool().await;
+    let server = app::make_server(db_pool).await;
     let port = std::env::var("PORT").unwrap_or("8080".to_string());
 
     let mut listener = server
