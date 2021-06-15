@@ -11,15 +11,15 @@ fn convert_db_to_api(
     herb: &db_results::Herb,
     herb_actions: &Vec<db_results::HerbAction>,
 ) -> api_results::Herb {
-    let mut api_herb_actions: Vec<api_results::HerbAction> = vec![];
-    for herb_action in herb_actions.iter() {
-        api_herb_actions.push(api_results::HerbAction {
+    let api_herb_actions: Vec<api_results::HerbAction> = herb_actions
+        .iter()
+        .map(|herb_action| api_results::HerbAction {
             id: herb_action.id,
             herb_id: herb_action.herb_id,
             herb_action_type_id: herb_action.herb_action_type_id,
             herb_action_type: String::from(&herb_action.herb_action_type),
-        });
-    }
+        })
+        .collect::<Vec<api_results::HerbAction>>();
     api_results::Herb {
         id: herb.id,
         name: String::from(&herb.name),
@@ -150,26 +150,26 @@ async fn get_all_herbs(
 }
 
 pub async fn get_all(limit: i64, offset: i64, db_pool: &PgPool) -> tide::Result<HerbsApiResult> {
-    let herbs = get_all_herbs(limit, offset, db_pool).await?;
-    let mut results: Vec<api_results::Herb> = vec![];
-    let mut herb_ids: Vec<i64> = vec![];
-    for herb in herbs.iter() {
-        herb_ids.push(herb.id);
-    }
+    let db_herbs = get_all_herbs(limit, offset, db_pool).await?;
+    let herb_ids: Vec<i64> = db_herbs.iter().map(|dbh| dbh.id).collect::<Vec<i64>>();
     let herb_actions = get_herb_actions(&herb_ids, db_pool)
         .await
         .map_err(|e| Error::new(StatusCode::NotFound, e))?;
-    for herb in herbs.iter() {
-        let mut this_herb_herb_actions: Vec<db_results::HerbAction> = vec![];
-        for ha in herb_actions.iter() {
-            if ha.herb_id == herb.id {
-                this_herb_herb_actions.push(ha.clone());
-            }
-        }
-        results.push(convert_db_to_api(herb, &this_herb_herb_actions));
-    }
+    let api_herbs: Vec<api_results::Herb> = db_herbs
+        .iter()
+        .map(|db_herb| {
+            convert_db_to_api(
+                db_herb,
+                &herb_actions
+                    .iter()
+                    .filter(|ha| ha.herb_id == db_herb.id)
+                    .cloned()
+                    .collect(),
+            )
+        })
+        .collect::<Vec<api_results::Herb>>();
     let api_results = HerbsApiResult {
-        data: Some(results),
+        data: Some(api_herbs),
         error: None,
     };
     Ok(api_results)

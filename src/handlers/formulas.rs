@@ -92,10 +92,10 @@ pub async fn get_all(limit: i64, offset: i64, db_pool: &PgPool) -> tide::Result<
     let formulas = get_all_formulas(limit, offset, db_pool)
         .await
         .map_err(|e| Error::new(409, e))?;
-    let mut results: Vec<api_results::Formula> = vec![];
-    for formula in formulas.iter() {
-        results.push(convert_db_to_api(formula));
-    }
+    let results: Vec<api_results::Formula> = formulas
+        .iter()
+        .map(|formula| convert_db_to_api(formula))
+        .collect::<Vec<api_results::Formula>>();
     let api_results = FormulasApiResult {
         data: Some(results),
         error: None,
