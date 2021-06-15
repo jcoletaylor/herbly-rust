@@ -147,6 +147,7 @@ pub struct HerbAction {
     pub id: i64,
     pub herb_id: i64,
     pub herb_action_type_id: i64,
+    pub herb_action_type: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -1,11 +1,14 @@
 use crate::helpers;
+use crate::models::api_results;
 use crate::models::db_results;
-use crate::models::web_results;
 use sqlx::{query_as, Error as SqlxError, PgPool};
 use tide::Error;
 
-fn convert_db_single_formula_to_web(formula: &db_results::Formula) -> web_results::Formula {
-    web_results::Formula {
+pub type FormulaApiResult = api_results::ApiResult<api_results::Formula>;
+pub type FormulasApiResult = api_results::ApiResult<Vec<api_results::Formula>>;
+
+fn convert_db_to_api(formula: &db_results::Formula) -> api_results::Formula {
+    api_results::Formula {
         id: formula.id,
         name: String::from(&formula.name),
         pinyin: helpers::copy_string_or_none(&formula.pinyin),
@@ -41,13 +44,16 @@ async fn get_single_formula(
     Ok(formula)
 }
 
-pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<web_results::Formula> {
+pub async fn get_one(name: String, db_pool: &PgPool) -> tide::Result<FormulaApiResult> {
     let maybe_formula = get_single_formula(&name, db_pool)
         .await
         .map_err(|e| Error::new(409, e))?;
 
     match maybe_formula {
-        Some(formula) => Ok(convert_db_single_formula_to_web(&formula)),
+        Some(formula) => Ok(FormulaApiResult {
+            data: Some(convert_db_to_api(&formula)),
+            error: None,
+        }),
         None => Err(Error::from_str(
             404,
             format!("No formula found for {}", name),
@@ -82,17 +88,17 @@ async fn get_all_formulas(
     Ok(formulas)
 }
 
-pub async fn get_all(
-    limit: i64,
-    offset: i64,
-    db_pool: &PgPool,
-) -> tide::Result<Vec<web_results::Formula>> {
+pub async fn get_all(limit: i64, offset: i64, db_pool: &PgPool) -> tide::Result<FormulasApiResult> {
     let formulas = get_all_formulas(limit, offset, db_pool)
         .await
         .map_err(|e| Error::new(409, e))?;
-    let mut results: Vec<web_results::Formula> = vec![];
+    let mut results: Vec<api_results::Formula> = vec![];
     for formula in formulas.iter() {
-        results.push(convert_db_single_formula_to_web(formula));
+        results.push(convert_db_to_api(formula));
     }
-    Ok(results)
+    let api_results = FormulasApiResult {
+        data: Some(results),
+        error: None,
+    };
+    Ok(api_results)
 }
