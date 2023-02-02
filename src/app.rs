@@ -5,7 +5,7 @@ use crate::controllers::formulas;
 use crate::controllers::herbs;
 use crate::state;
 
-pub async fn make_db_pool() -> PgPool {
+pub async fn get_db_pool() -> PgPool {
     let db_url = std::env::var("DATABASE_URL").unwrap();
     let db_pool = Pool::connect(&db_url).await.unwrap();
     db_pool
